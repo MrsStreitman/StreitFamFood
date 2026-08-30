@@ -531,14 +531,26 @@ function showToast(msg){
 }
 
 const MEALS_KEY = "meals_v2";
+let mealsInitialized = false;
 async function loadMeals(){
   try{
     const res = await window.storage.get(MEALS_KEY, true);
     const parsed = JSON.parse(res.value);
-    if(Array.isArray(parsed) && parsed.length) return parsed;
+    if(Array.isArray(parsed) && parsed.length){
+      mealsInitialized = true;
+      return parsed;
+    }
     throw new Error("empty");
   }catch(e){
+    if(mealsInitialized){
+      // We already know saved data exists out there — this was a transient
+      // read failure, not a missing key. Never overwrite real data here.
+      showToast("Couldn't refresh right now \u2014 keeping what's already loaded.");
+      return meals;
+    }
+    // True first-ever load for this planner: safe to seed the defaults.
     try{ await window.storage.set(MEALS_KEY, JSON.stringify(DEFAULT_MEALS), true); }catch(e2){}
+    mealsInitialized = true;
     return DEFAULT_MEALS.slice();
   }
 }
